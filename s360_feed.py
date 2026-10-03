@@ -36,9 +36,9 @@ RETRY_SECONDS = 5.0
 MAX_CURVE_POINTS = 4  # S360 firmware limit; extra points are silently dropped
 
 # (duty%, tempC) — device interpolates linearly between points.
-FAN_PROFILE = [(25, 30), (40, 55), (60, 70), (100, 85)]
-PUMP_PROFILE = [(70, 30), (80, 50), (90, 70), (100, 85)]
-WATERBLOCK_PROFILE = [(30, 30), (45, 50), (65, 65), (100, 85)]
+FAN_PROFILE = [(25, 30), (40, 55), (60, 65), (100, 75)]
+PUMP_PROFILE = [(70, 30), (80, 50), (90, 65), (100, 75)]
+WATERBLOCK_PROFILE = [(30, 30), (45, 50), (60, 60), (100, 75)]
 
 CPU_HWMON_NAMES = {"k10temp", "coretemp", "zenpower"}
 CPU_TEMP_LABELS = {"Tctl", "Tdie", "Package id 0"}
