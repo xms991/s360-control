@@ -1,0 +1,2 @@
+# MSI MEG CoreLiquid S360 (liquidctl fork support)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0db0", ATTRS{idProduct}=="6a05", TAG+="uaccess"

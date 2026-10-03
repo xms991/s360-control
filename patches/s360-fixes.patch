@@ -1,0 +1,73 @@
+From ecc4883570e11b646ae5f3b8e08088443d5aed5c Mon Sep 17 00:00:00 2001
+From: xms991 <69564468+xms991@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 00:30:14 -0400
+Subject: [PATCH] S360 fixes: HID probe, parse_channel off-by-one, display fw
+ version naming
+
+---
+ liquidctl/driver/msi.py | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/liquidctl/driver/msi.py b/liquidctl/driver/msi.py
+index a7b092b..6643c59 100644
+--- a/liquidctl/driver/msi.py
++++ b/liquidctl/driver/msi.py
+@@ -373,7 +373,13 @@ class MpgCooler(UsbHidDriver):
+         # have the desired usage page, or that on that system a
+         # single handle is returned for that device interface (see: #259)
+ 
+-        if handle.hidinfo["usage_page"] == EXTRA_USAGE_PAGE:
++        # the S360 (0x6A05) only exposes a single HID collection, on
++        # usage_page 0x0001; the exclusion below is only valid for the
++        # other (K360-family) models
++        if (
++            handle.hidinfo["usage_page"] == EXTRA_USAGE_PAGE
++            and handle.hidinfo["product_id"] != 0x6A05
++        ):
+             return
+         yield from super().probe(handle, **kwargs)
+ 
+@@ -399,10 +405,10 @@ class MpgCooler(UsbHidDriver):
+         self._ldrom_firmware_version = ldrom_hi << 4 + ldrom_lo
+ 
+         try:
+-            self._display_firmware_version = self.get_display_firmware_version()
++            self._oled_firmware_version = self.get_oled_firmware_version()
+         except Exception:
+             _LOGGER.warning("Display not responding, skipping firmware version check.")
+-            self._display_firmware_version = "unknown"
++            self._oled_firmware_version = "unknown"
+ 
+         return ret
+ 
+@@ -575,18 +581,22 @@ class MpgCooler(UsbHidDriver):
+         self._send_safe_temp()
+ 
+     def parse_channel(self, channel):
++        error = ValueError(
++            'unknown channel, should be "fans", "fan1", "fan2", "fan3", "waterblock-fan" or "pump".'
++        )
+         if channel == "pump":
+             return [4]
+         elif channel == "fans":
+             return range(_RAD_FAN_COUNT)
+         elif channel == "waterblock-fan":
+             return [3]
+-        elif channel[:3] == "fan" and (int(channel[3:]) in range(_RAD_FAN_COUNT)):
+-            return [int(channel[3:])]
++        elif channel[:3] == "fan":
++            fan = int(channel[3:]) - 1
++            if fan not in range(_RAD_FAN_COUNT):
++                raise error
++            return [fan]
+         else:
+-            raise ValueError(
+-                'unknown channel, should be "fans", "fan1", "fan2", "fan3", "waterblock-fan" or "pump".'
+-            )
++            raise error
+ 
+     @staticmethod
+     def clamp_and_pad(values):
+-- 
+2.53.0
+

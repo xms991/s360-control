@@ -1,0 +1,11 @@
+[Unit]
+Description=MSI MEG CoreLiquid S360 fan curves and CPU temperature feed
+After=default.target
+
+[Service]
+ExecStart=/usr/bin/python3 %h/s360-control/s360_feed.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
