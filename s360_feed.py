@@ -9,7 +9,10 @@ sends it.  This script sets the curves once, then feeds CPU temperature
 If this service stops, the cooler simply keeps running at the duty cycle
 implied by the last temperature it received.
 
-Curves are (duty%, tempC) pairs, max 7 points per channel.  Edit below.
+Curves are (duty%, tempC) pairs.  Edit below.
+
+IMPORTANT: the S360 stores at most 4 points per channel (the K360
+supports 7; the S360 firmware silently drops points beyond the 4th).
 """
 
 import glob
@@ -30,11 +33,12 @@ VENDOR_ID = 0x0DB0
 PRODUCT_ID = 0x6A05
 POLL_SECONDS = 2.0
 RETRY_SECONDS = 5.0
+MAX_CURVE_POINTS = 4  # S360 firmware limit; extra points are silently dropped
 
 # (duty%, tempC) — device interpolates linearly between points.
-FAN_PROFILE = [(25, 30), (35, 45), (45, 55), (60, 65), (75, 75), (90, 85), (100, 95)]
+FAN_PROFILE = [(25, 30), (40, 55), (60, 70), (100, 85)]
 PUMP_PROFILE = [(70, 30), (80, 50), (90, 70), (100, 85)]
-WATERBLOCK_PROFILE = [(30, 30), (40, 50), (55, 65), (70, 75), (100, 90)]
+WATERBLOCK_PROFILE = [(30, 30), (45, 50), (65, 65), (100, 85)]
 
 CPU_HWMON_NAMES = {"k10temp", "coretemp", "zenpower"}
 CPU_TEMP_LABELS = {"Tctl", "Tdie", "Package id 0"}
@@ -81,6 +85,17 @@ def find_s360():
     return None
 
 
+def apply_profiles(dev):
+    profiles = {"fans": FAN_PROFILE, "pump": PUMP_PROFILE, "waterblock-fan": WATERBLOCK_PROFILE}
+    for channel, profile in profiles.items():
+        if len(profile) > MAX_CURVE_POINTS:
+            raise ValueError(
+                f"{channel}: {len(profile)} points, but the S360 stores at most "
+                f"{MAX_CURVE_POINTS}; extra points would be silently dropped"
+            )
+        dev.set_speed_profile(channel, profile)
+
+
 def run():
     while True:
         dev = find_s360()
@@ -91,9 +106,7 @@ def run():
         try:
             with dev.connect():
                 log.info("connected, applying fan curves")
-                dev.set_speed_profile("fans", FAN_PROFILE)
-                dev.set_speed_profile("pump", PUMP_PROFILE)
-                dev.set_speed_profile("waterblock-fan", WATERBLOCK_PROFILE)
+                apply_profiles(dev)
                 log.info("curves applied, feeding CPU status every %ss", POLL_SECONDS)
                 while True:
                     temp = read_cpu_temp()
